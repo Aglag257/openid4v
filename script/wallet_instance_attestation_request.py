@@ -154,6 +154,7 @@ def main(wallet_provider_id: str, trust_anchors: dict):
 
     # create an ephemeral key
     _ephemeral_key = _wallet.mint_new_key()
+    #_ephemeral_key = _wallet.import_key()
 
     # load it in the wallet KeyJar
     _jwks = {"keys": [_ephemeral_key.serialize(private=True)]}
@@ -167,6 +168,7 @@ def main(wallet_provider_id: str, trust_anchors: dict):
     get_jwks(_wallet, _wallet.context.keyjar, trust_chains[0].metadata['wallet_provider'],
              wallet_provider_id)
 
+    print('Ephemeral key: ' , _ephemeral_key)
     war_payload = {
         "challenge": "__not__applicable__",
         "hardware_signature": "__not__applicable__",
