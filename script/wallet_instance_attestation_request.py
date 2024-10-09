@@ -8,6 +8,21 @@ from fedservice.utils import get_jwks
 from fedservice.utils import make_federation_combo
 from idpyoidc.client.defaults import DEFAULT_KEY_DEFS
 
+from authlib.jose import JsonWebKey
+import jwt
+import uuid
+import time
+from jose import jwk
+from jose.utils import base64url_decode
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.serialization import load_der_private_key
+from cryptography.hazmat.backends import default_backend
+import base64
+
+from cryptography.hazmat.primitives import serialization
+
+import hashlib
+
 WALLET_CONFIG = {
     "services": {
         "integrity": {
@@ -83,6 +98,61 @@ PID_EEA_CONSUMER_CONFIG = {
 }
 
 
+def load_ephemeral_key(ephemeral_key):
+
+    return ephemeral_key.private_key()
+
+def calculate_jwk_thumbprint(ephemeral_key):
+    # Get the public key components from the ECKey object
+    public_key_dict = ephemeral_key.serialize(private=False)
+    
+    # Construct a JWK dictionary for the public key part
+    jwk = {
+        "kty": public_key_dict['kty'],
+        "crv": public_key_dict['crv'],
+        "x": public_key_dict['x'],
+        "y": public_key_dict['y']
+    }
+    
+    # Create canonical form of the JWK
+    jwk_json = '{"crv":"%s","kty":"%s","x":"%s","y":"%s"}' % (
+        jwk['crv'], jwk['kty'], jwk['x'], jwk['y']
+    )
+    
+    # Calculate thumbprint
+    jwk_thumbprint = hashlib.sha256(jwk_json.encode('utf-8')).digest()
+    return base64.urlsafe_b64encode(jwk_thumbprint).rstrip(b'=').decode('utf-8')
+
+def create_wia_pop_jwt(ephemeral_key):
+    # Get the private key directly from the ECKey object
+    private_key = load_ephemeral_key(ephemeral_key)
+    
+    # Calculate the JWK Thumbprint
+    jwk_thumbprint = calculate_jwk_thumbprint(ephemeral_key)
+    print('JWK Thumbprint:')
+    print(jwk_thumbprint)
+    # Prepare payload
+    payload = {
+        "iss": jwk_thumbprint,
+        "aud": "https://openidfed-test-1.sunet.se:5001/",
+        "iat": int(time.time()),
+        "exp": int(time.time()) + 300,
+        "jti": str(uuid.uuid4())
+    }
+    
+    # Sign JWT
+    wia_pop_jwt = jwt.encode(
+        payload,
+        private_key,
+        algorithm="ES256",
+        headers={
+            "typ": "jwt-client-attestation-pop",
+            "alg": "ES256",
+            "kid": jwk_thumbprint
+        }
+    )
+    
+    return wia_pop_jwt
 def wallet_setup(entity_id: str,
                  authority_hints: Optional[List[str]] = None,
                  trust_anchors: Optional[dict] = None,
@@ -199,6 +269,11 @@ def main(wallet_provider_id: str, trust_anchors: dict):
 
     resp = _wallet.service_request(_service, response_body_type='application/jwt', **_info)
 
+    wia_pop = create_wia_pop_jwt(_ephemeral_key)
+    print('wia_pop')
+    print(wia_pop)
+    # assertion = f"{str(resp)}~{str(wia_pop)}"
+    # return assertion
     return resp
 
 
