@@ -4,6 +4,10 @@ from sys import argv
 from typing import List
 from typing import Optional
 
+import os
+from typing import Dict, Any
+
+
 from fedservice.utils import get_jwks
 from fedservice.utils import make_federation_combo
 from idpyoidc.client.defaults import DEFAULT_KEY_DEFS
@@ -96,6 +100,29 @@ PID_EEA_CONSUMER_CONFIG = {
         }
     }
 }
+
+def export_tokens(wallet_attestation_jwt: str, jwk_thumbprint: str, wia_pop: str, output_path: str) -> None:
+    """
+    Export the tokens to a JSON file that can be read by the Node.js script.
+    
+    Args:
+        wallet_attestation_jwt: The wallet attestation JWT
+        jwk_thumbprint: The JWK thumbprint
+        wia_pop: The WIA-PoP token
+        output_path: Path where to save the JSON file
+    """
+    tokens = {
+        "walletAttestationJWT": wallet_attestation_jwt,
+        "jwkThumbprint": jwk_thumbprint,
+        "wiaPop": wia_pop
+    }
+    
+    # Ensure the output directory exists
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    
+    # Write the tokens to a JSON file
+    with open(output_path, 'w') as f:
+        json.dump(tokens, f, indent=2)
 
 
 def load_ephemeral_key(ephemeral_key):
@@ -270,6 +297,19 @@ def main(wallet_provider_id: str, trust_anchors: dict):
     resp = _wallet.service_request(_service, response_body_type='application/jwt', **_info)
 
     wia_pop = create_wia_pop_jwt(_ephemeral_key)
+
+    #assertion = f"{str(resp)}~{str(wia_pop)}"
+    
+    #print('BLAH', str(resp))
+    # Extract the individual components
+    wallet_attestation_jwt = str(resp)
+    jwk_thumbprint = calculate_jwk_thumbprint(_ephemeral_key)
+    
+    # Export the tokens to a JSON file
+    output_path = os.path.join(os.path.dirname(__file__), 'tokens.json')
+    export_tokens(wallet_attestation_jwt, jwk_thumbprint, wia_pop, output_path)
+    
+
     print('wia_pop')
     print(wia_pop)
     # assertion = f"{str(resp)}~{str(wia_pop)}"
