@@ -1,31 +1,25 @@
 #!/usr/bin/env python3
+import base64
+import hashlib
 import json
-from sys import argv
-from typing import List
-from typing import Optional
-
 import os
-from typing import Dict, Any
-
-
-from fedservice.utils import get_jwks
-from fedservice.utils import make_federation_combo
-from idpyoidc.client.defaults import DEFAULT_KEY_DEFS
-
-from authlib.jose import JsonWebKey
-import jwt
-import uuid
 import time
+import uuid
+from sys import argv
+from typing import Any, Dict, List, Optional
+
 from jose import jwk
-from jose.utils import base64url_decode
+
+import jwt
+from authlib.jose import JsonWebKey
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.serialization import load_der_private_key
-from cryptography.hazmat.backends import default_backend
-import base64
-
-from cryptography.hazmat.primitives import serialization
-
-import hashlib
+from fedservice.utils import get_jwks, make_federation_combo
+from idpyoidc.client.defaults import DEFAULT_KEY_DEFS
+from jose import jwk
+from jose.utils import base64url_decode
 
 WALLET_CONFIG = {
     "services": {
@@ -100,6 +94,29 @@ PID_EEA_CONSUMER_CONFIG = {
         }
     }
 }
+
+def save_key_as_jwk(key):
+    # If the key is already in JWK format
+    if hasattr(key, 'to_dict'):
+        jwk_dict = key.to_dict()
+    # If the key has a direct JSON representation
+    elif hasattr(key, 'to_json'):
+        jwk_dict = json.loads(key.to_json())
+    # If the key can be exported to PEM
+    elif hasattr(key, 'private_bytes'):
+        # For cryptography.io keys
+        pem = key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption()
+        )
+        jwk_dict = jwk.construct(pem, algorithm='RS256').to_dict()
+    else:
+        raise ValueError("Unsupported key type")
+    
+    # Save the JWK to a file
+    with open('key.jwk', 'w') as f:
+        json.dump(jwk_dict, f, indent=2)
 
 def export_tokens(wallet_attestation_jwt: str, jwk_thumbprint: str, wia_pop: str, output_path: str) -> None:
     """
@@ -251,6 +268,7 @@ def main(wallet_provider_id: str, trust_anchors: dict):
 
     # create an ephemeral key
     _ephemeral_key = _wallet.mint_new_key()
+    save_key_as_jwk(_ephemeral_key)
 
     # load it in the wallet KeyJar
     _jwks = {"keys": [_ephemeral_key.serialize(private=True)]}
