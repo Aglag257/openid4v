@@ -184,7 +184,18 @@ def create_wia_pop_jwt(ephemeral_key):
         "jti": str(uuid.uuid4())
     }
     
-    # Sign JWT
+    # # Sign JWT
+    # wia_pop_jwt = jwt.encode(
+    #     payload,
+    #     private_key,
+    #     algorithm="ES256",
+    #     headers={
+    #         "typ": "jwt-client-attestation-pop",
+    #         "alg": "ES256",
+    #         "kid": jwk_thumbprint
+    #     }
+    # )
+        # Sign JWT
     wia_pop_jwt = jwt.encode(
         payload,
         private_key,
