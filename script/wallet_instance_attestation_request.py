@@ -201,9 +201,7 @@ def create_wia_pop_jwt(ephemeral_key):
         private_key,
         algorithm="ES256",
         headers={
-            "typ": "jwt-client-attestation-pop",
             "alg": "ES256",
-            "kid": jwk_thumbprint
         }
     )
     
