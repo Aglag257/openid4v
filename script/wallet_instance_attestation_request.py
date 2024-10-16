@@ -343,7 +343,7 @@ def main(wallet_provider_id: str, trust_anchors: dict):
     print(wia_pop)
     # assertion = f"{str(resp)}~{str(wia_pop)}"
     # return assertion
-    return resp
+    return resp['assertion']
 
 
 if __name__ == "__main__":
