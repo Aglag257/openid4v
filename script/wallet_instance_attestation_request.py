@@ -172,12 +172,13 @@ def create_wia_pop_jwt(ephemeral_key):
     private_key = load_ephemeral_key(ephemeral_key)
     
     # Calculate the JWK Thumbprint
-    jwk_thumbprint = calculate_jwk_thumbprint(ephemeral_key)
+    #jwk_thumbprint = calculate_jwk_thumbprint(ephemeral_key)
+    jwk_thumbprint = ephemeral_key.serialize()
     print('JWK Thumbprint:')
-    print(jwk_thumbprint)
+    print(jwk_thumbprint['kid'])
     # Prepare payload
     payload = {
-        "iss": jwk_thumbprint,
+        "iss": jwk_thumbprint['kid'],
         "aud": "https://openidfed-test-1.sunet.se:5001/",
         "iat": int(time.time()),
         "exp": int(time.time()) + 300,
@@ -330,7 +331,8 @@ def main(wallet_provider_id: str, trust_anchors: dict):
     #print('BLAH', str(resp))
     # Extract the individual components
     wallet_attestation_jwt = str(resp)
-    jwk_thumbprint = calculate_jwk_thumbprint(_ephemeral_key)
+    #jwk_thumbprint = calculate_jwk_thumbprint(_ephemeral_key)
+    jwk_thumbprint = _ephemeral_key.serialize()
     
     # Export the tokens to a JSON file
     output_path = os.path.join(os.path.dirname(__file__), 'tokens.json')
